@@ -8,12 +8,12 @@ import com.intellij.lang.javascript.psi.JSLiteralExpression;
 import com.intellij.lang.javascript.psi.JSObjectLiteralExpression;
 import com.intellij.lang.javascript.psi.JSProperty;
 import com.intellij.lang.javascript.psi.JSReferenceExpression;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
-import com.intellij.psi.search.FilenameIndex;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
 import io.github.linwancen.plugin.show.ext.listener.FileLoader;
@@ -40,19 +40,21 @@ public class VueRouterCache extends FileLoader {
 
     @Override
     public void loadAllImpl(@NotNull Project project) {
-        @NotNull Collection<VirtualFile> files = FilenameIndex.getVirtualFilesByName(project,
+        @NotNull Collection<VirtualFile> files = getVirtualFilesByName(project,
                 "package.json", GlobalSearchScope.projectScope(project));
         @NotNull StringBuilder sb = new StringBuilder();
         for (@NotNull VirtualFile file : files) {
-            VirtualFile parent = file.getParent();
-            if (parent == null) {
-                continue;
-            }
-            @Nullable VirtualFile src = parent.findChild("src");
-            if (src == null) {
-                continue;
-            }
-            @Nullable VirtualFile router = src.findChild("router");
+            @Nullable VirtualFile router = DumbService.getInstance(project).runReadActionInSmartMode(() -> {
+                if (project.isDisposed() || !file.isValid()) {
+                    return null;
+                }
+                VirtualFile parent = file.getParent();
+                if (parent == null) {
+                    return null;
+                }
+                @Nullable VirtualFile src = parent.findChild("src");
+                return src == null ? null : src.findChild("router");
+            });
             if (router == null) {
                 continue;
             }

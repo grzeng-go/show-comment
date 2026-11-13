@@ -9,6 +9,7 @@ import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileVisitor;
 import com.intellij.psi.search.FilenameIndex;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.concurrency.EdtExecutorService;
 import org.jetbrains.annotations.NotNull;
@@ -115,6 +116,13 @@ public abstract class FileLoader {
                                                                       @NotNull String extension) {
         return DumbService.getInstance(project).runReadActionInSmartMode(() ->
                 FilenameIndex.getAllFilesByExt(project, extension));
+    }
+
+    protected final @NotNull Collection<VirtualFile> getVirtualFilesByName(@NotNull Project project,
+                                                                           @NotNull String name,
+                                                                           @NotNull GlobalSearchScope scope) {
+        return DumbService.getInstance(project).runReadActionInSmartMode(() ->
+                FilenameIndex.getVirtualFilesByName(project, name, scope));
     }
 
     protected final void loadFileInSmartReadAction(@NotNull Project project, @NotNull VirtualFile file) {
