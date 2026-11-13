@@ -2,7 +2,6 @@ package io.github.linwancen.plugin.show.ext.sql;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.search.FilenameIndex;
 import io.github.linwancen.plugin.show.ext.listener.FileLoader;
 import io.github.linwancen.plugin.show.lang.base.PsiUnSaveUtils;
 import io.github.linwancen.plugin.show.settings.GlobalSettingsState;
@@ -56,10 +55,10 @@ public class SqlCache extends FileLoader {
         if (!g.sqlSplitEffect && !p.sqlSplitEffect) {
             return;
         }
-        @NotNull Collection<VirtualFile> files = FilenameIndex.getAllFilesByExt(project, "sql");
+        @NotNull Collection<VirtualFile> files = getAllFilesByExt(project, "sql");
         @NotNull StringBuilder sb = new StringBuilder();
         for (@NotNull VirtualFile file : files) {
-            loadFileImpl(file, project);
+            loadFileInSmartReadAction(project, file);
             sb.append(file.getName()).append("\n");
         }
         if (files.isEmpty()) {

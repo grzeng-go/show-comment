@@ -3,7 +3,6 @@ package io.github.linwancen.plugin.show.ext.conf;
 import com.google.common.base.Splitter;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.search.FilenameIndex;
 import io.github.linwancen.plugin.show.ext.listener.FileLoader;
 import io.github.linwancen.plugin.show.lang.base.PsiUnSaveUtils;
 import org.jetbrains.annotations.NotNull;
@@ -136,17 +135,15 @@ public class ConfCache extends FileLoader {
 
     @Override
     public void loadAllImpl(@NotNull Project project) {
-        @NotNull Collection<VirtualFile> files = FilenameIndex.getAllFilesByExt(project,
-                TsvLoader.EXT);
+        @NotNull Collection<VirtualFile> files = getAllFilesByExt(project, TsvLoader.EXT);
         @NotNull StringBuilder sb = new StringBuilder();
         for (@NotNull VirtualFile file : files) {
-            loadFileImpl(file, project);
+            loadFileInSmartReadAction(project, file);
             sb.append(file.getName()).append("\n");
         }
-        @NotNull Collection<VirtualFile> files2 = FilenameIndex.getAllFilesByExt(project,
-                TsvLoader.REGEXP_EXT);
+        @NotNull Collection<VirtualFile> files2 = getAllFilesByExt(project, TsvLoader.REGEXP_EXT);
         for (@NotNull VirtualFile file : files2) {
-            loadFileImpl(file, project);
+            loadFileInSmartReadAction(project, file);
             sb.append(file.getPath()).append("\n");
         }
         if (files.isEmpty()) {

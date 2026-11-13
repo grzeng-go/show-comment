@@ -2,18 +2,20 @@ package io.github.linwancen.plugin.show.ext.listener;
 
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileVisitor;
+import com.intellij.psi.search.FilenameIndex;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.concurrency.EdtExecutorService;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -71,28 +73,57 @@ public abstract class FileLoader {
     protected abstract void loadFileImpl(@NotNull VirtualFile file, @Nullable Project project);
 
     public static void loadAll(@NotNull Project project) {
-        // Never block the caller (may be EDT): nonBlocking + inSmartMode waits in background.
-        ReadAction.nonBlocking(() -> {
-                    if (!project.isDisposed()) {
-                        FileLoader.EPN.getExtensionList()
-                                .forEach(fileLoader -> fileLoader.loadAllImpl(project));
-                        EdtExecutorService.getInstance()
-                                .execute(() -> ProjectView.getInstance(project).refresh());
-                    }
-                }).inSmartMode(project)
-                .submit(AppExecutorUtil.getAppExecutorService());
+        ApplicationManager.getApplication().executeOnPooledThread(() -> {
+            if (project.isDisposed()) {
+                return;
+            }
+            FileLoader.EPN.getExtensionList()
+                    .forEach(fileLoader -> fileLoader.loadAllImpl(project));
+            EdtExecutorService.getInstance()
+                    .execute(() -> {
+                        if (!project.isDisposed()) {
+                            ProjectView.getInstance(project).refresh();
+                        }
+                    });
+        });
     }
 
     public void visitChildrenRecursively(@NotNull Project project, @NotNull VirtualFile dir, @NotNull StringBuilder sb) {
-        VfsUtil.visitChildrenRecursively(dir, new VirtualFileVisitor<Void>() {
-            @Override
-            public boolean visitFile(@NotNull VirtualFile file) {
-                if (file.isDirectory()) {
+        @NotNull Collection<VirtualFile> files = DumbService.getInstance(project).runReadActionInSmartMode(() -> {
+            @NotNull Collection<VirtualFile> found = new ArrayList<>();
+            VfsUtil.visitChildrenRecursively(dir, new VirtualFileVisitor<Void>() {
+                @Override
+                public boolean visitFile(@NotNull VirtualFile file) {
+                    if (!file.isDirectory()) {
+                        found.add(file);
+                    }
                     return true;
                 }
+            });
+            return found;
+        });
+        for (@NotNull VirtualFile file : files) {
+            if (project.isDisposed()) {
+                return;
+            }
+            loadFileInSmartReadAction(project, file);
+            sb.append(file.getPath()).append("\n");
+        }
+    }
+
+    protected final @NotNull Collection<VirtualFile> getAllFilesByExt(@NotNull Project project,
+                                                                      @NotNull String extension) {
+        return DumbService.getInstance(project).runReadActionInSmartMode(() ->
+                FilenameIndex.getAllFilesByExt(project, extension));
+    }
+
+    protected final void loadFileInSmartReadAction(@NotNull Project project, @NotNull VirtualFile file) {
+        if (project.isDisposed()) {
+            return;
+        }
+        DumbService.getInstance(project).runReadActionInSmartMode(() -> {
+            if (!project.isDisposed() && file.isValid()) {
                 loadFileImpl(file, project);
-                sb.append(file.getPath()).append("\n");
-                return true;
             }
         });
     }

@@ -3,6 +3,7 @@ package io.github.linwancen.plugin.show.bean;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
@@ -33,11 +34,20 @@ public class FileInfo extends SettingsInfo {
     }
 
     public static @Nullable FileInfo of(@NotNull VirtualFile file, @NotNull Project project) {
-        @Nullable Document document = ReadAction.compute(() -> FileDocumentManager.getInstance().getDocument(file));
-        if (document == null) {
-            return null;
+        // Painting runs on EDT without read access; only reuse an already loaded document there.
+        if (ApplicationManager.getApplication().isDispatchThread()) {
+            @Nullable Document document = FileDocumentManager.getInstance().getCachedDocument(file);
+            if (document == null) {
+                return null;
+            }
+            return new FileInfo(file, document, project, FuncEnum.LINE);
+        } else {
+            @Nullable Document document = ReadAction.compute(() -> FileDocumentManager.getInstance().getDocument(file));
+            if (document == null) {
+                return null;
+            }
+            return new FileInfo(file, document, project, FuncEnum.LINE);
         }
-        return new FileInfo(file, document, project, FuncEnum.LINE);
     }
 
     public static @Nullable FileInfo of(@NotNull AnActionEvent event) {

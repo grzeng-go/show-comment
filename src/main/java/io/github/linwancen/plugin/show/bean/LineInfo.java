@@ -24,7 +24,7 @@ public class LineInfo extends FileInfo {
     }
 
     public static @Nullable LineInfo of(@NotNull VirtualFile file, @NotNull Project project, int lineNumber) {
-        @Nullable FileInfo info = of(file, project);
+        @Nullable FileInfo info = FileInfo.of(file, project);
         if (info == null) {
             return null;
         }

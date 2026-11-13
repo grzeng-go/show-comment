@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -28,8 +29,9 @@ public class OllamaModelsCache extends FileLoader {
 
     @Override
     public void loadAllImpl(@NotNull Project project) {
-        LocalFileSystem fileSystem = LocalFileSystem.getInstance();
-        @Nullable VirtualFile dir = fileSystem.findFileByPath(project.getBasePath() + "/manifests/registry.ollama.ai");
+        @Nullable VirtualFile dir = DumbService.getInstance(project).runReadActionInSmartMode(() ->
+                LocalFileSystem.getInstance().findFileByPath(
+                        project.getBasePath() + "/manifests/registry.ollama.ai"));
         if (dir == null) {
             return;
         }
